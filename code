@@ -1,0 +1,1236 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordWave - 英文洗腦機 v2.5</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            violet: '#8b5cf6',
+                            indigo: '#6366f1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Keyword Badge with Interactive Tooltip */
+        .highlight-keyword {
+            background: linear-gradient(120deg, rgba(139, 92, 246, 0.4) 0%, rgba(99, 102, 241, 0.4) 100%);
+            border-bottom: 2px solid #a855f7;
+            color: #f3e8ff;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .highlight-keyword:hover {
+            background: rgba(168, 85, 247, 0.7);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* Active Sentence Reading Highlight */
+        .story-sentence {
+            padding: 2px 4px;
+            border-radius: 6px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .story-sentence.active-sentence {
+            background-color: rgba(168, 85, 247, 0.25);
+            border-left: 3px solid #c084fc;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.7); }
+        }
+        .animate-glow {
+            animation: pulse-glow 3s infinite ease-in-out;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen selection:bg-purple-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 px-4 py-3">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('daily')">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-brain text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
+                        WordWave <span class="text-[10px] uppercase font-mono tracking-widest bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full">v2.5 語音故事增強</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400">圖像 · 影音 · 故事同步朗讀 · 4維記憶網</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <i class="fa-solid fa-fire text-amber-400 animate-bounce"></i>
+                    <span id="streak-count">5</span> 天連擊
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 mb-24">
+
+        <!-- TAB 1: 今日洗腦 (Daily Main Immersive Dashboard) -->
+        <section id="tab-daily" class="tab-content space-y-8">
+            
+            <!-- Action Toolbar & Switcher -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-mono font-semibold text-purple-400 uppercase tracking-widest">Daily Brainwash Target</span>
+                    <h2 class="text-2xl font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bolt-lightning text-amber-400"></i> 今日沉浸英文單字
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="navigateWord(-1)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-medium transition text-slate-300 flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> 上一個
+                    </button>
+                    <button onclick="loadRandomDailyWord()" class="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shuffle"></i> 隨機換單字
+                    </button>
+                    <button onclick="navigateWord(1)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-medium transition text-slate-300 flex items-center gap-1">
+                        下一個 <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Master Word Card (Hero Section) -->
+            <div class="glass-card rounded-3xl overflow-hidden border border-slate-700/60 shadow-2xl relative">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-0">
+                    
+                    <!-- Left: High-def Unsplash Visual Container -->
+                    <div class="lg:col-span-5 relative min-h-[260px] lg:min-h-[380px] bg-slate-900 overflow-hidden group">
+                        <img id="word-image" src="" alt="Word Visual" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
+                        <div class="absolute top-4 left-4 flex gap-2">
+                            <span id="word-category-tag" class="text-[11px] font-bold uppercase tracking-wider bg-purple-950/80 backdrop-blur-md text-purple-300 border border-purple-500/40 px-3 py-1 rounded-full">
+                                Daily Life
+                            </span>
+                        </div>
+                        <div class="absolute bottom-4 left-4 right-4 text-xs text-slate-300 flex items-center justify-between">
+                            <span class="bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-white/10 text-[11px]"><i class="fa-solid fa-image text-purple-400 mr-1"></i> 圖像情境記憶法</span>
+                            <button id="daily-bookmark-btn" onclick="toggleCurrentWordBookmark()" class="w-9 h-9 rounded-full bg-slate-900/80 hover:bg-purple-600 border border-white/20 text-white flex items-center justify-center transition">
+                                <i class="fa-regular fa-bookmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Vocabulary Info & Audio Controls -->
+                    <div class="lg:col-span-7 p-6 lg:p-8 flex flex-col justify-between space-y-6">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span id="word-pos" class="text-xs font-mono text-slate-400 font-semibold">noun (名詞)</span>
+                                <!-- Speech Speed Controls -->
+                                <div class="flex items-center bg-slate-800/80 border border-slate-700 rounded-xl p-1 gap-1 text-[11px]">
+                                    <span class="text-slate-400 px-1 font-mono">語速</span>
+                                    <button onclick="setGlobalSpeed(0.8)" id="speed-0.8" class="speed-btn px-2 py-0.5 rounded-lg text-slate-300 hover:bg-slate-700 transition">0.8x</button>
+                                    <button onclick="setGlobalSpeed(1.0)" id="speed-1.0" class="speed-btn px-2 py-0.5 rounded-lg bg-purple-600 text-white font-bold transition">1.0x</button>
+                                    <button onclick="setGlobalSpeed(1.2)" id="speed-1.2" class="speed-btn px-2 py-0.5 rounded-lg text-slate-300 hover:bg-slate-700 transition">1.2x</button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-4 my-2">
+                                <h3 id="current-word" class="text-4xl lg:text-5xl font-black text-white tracking-tight">Apple</h3>
+                                <button onclick="speakWord(document.getElementById('current-word').textContent)" class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 transition transform active:scale-95">
+                                    <i class="fa-solid fa-volume-high text-xl"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-3 text-slate-400 font-mono text-sm mb-4">
+                                <span id="word-phonetic">/ˈæp.əl/</span>
+                                <span class="text-slate-600">|</span>
+                                <span id="word-translation" class="font-sans font-bold text-xl text-purple-300">蘋果、蘋果公司</span>
+                            </div>
+
+                            <p id="word-definition" class="text-sm text-slate-300 leading-relaxed bg-slate-900/50 p-3.5 rounded-2xl border border-slate-800">
+                                Definition content
+                            </p>
+                        </div>
+
+                        <!-- 1-Minute Launch Trigger Banner -->
+                        <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex items-center gap-2 text-xs text-slate-400">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                預估 <strong>60 秒</strong> 五感全方位記憶流程
+                            </div>
+                            <button onclick="startBrainwashSession()" class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold rounded-2xl shadow-xl shadow-purple-600/30 transition flex items-center justify-center gap-2 text-base animate-glow">
+                                <i class="fa-solid fa-bolt"></i> 開啟 1 分鐘極限洗腦
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: 記憶加速器 (Mnemonics & Root Decomposition) -->
+            <div class="glass-panel rounded-3xl p-6 border border-purple-500/20 shadow-lg space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-key text-amber-400"></i> 好記憶的方式 (記憶藍圖)
+                    </h3>
+                    <span class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full font-mono">Mnemonics</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 1. Sound-alike / Root breakdown -->
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase tracking-wider mb-2">
+                            <i class="fa-solid fa-puzzle-piece"></i> 諧音 / 字根字首拆解
+                        </div>
+                        <p id="mnemonic-root" class="text-xs text-slate-300 leading-relaxed">
+                            --
+                        </p>
+                    </div>
+                    <!-- 2. Mental Image Prompt -->
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-2">
+                            <i class="fa-solid fa-eye"></i> 心智圖像聯想
+                        </div>
+                        <p id="mnemonic-image" class="text-xs text-slate-300 leading-relaxed">
+                            --
+                        </p>
+                    </div>
+                    <!-- 3. Contextual Hook Phrase -->
+                    <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                        <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
+                            <i class="fa-solid fa-quote-left"></i> 記憶金句
+                        </div>
+                        <p id="mnemonic-hook" class="text-xs font-bold text-emerald-300 leading-relaxed">
+                            --
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: 短篇故事小文章 (Mini-Story Context & Native TTS Interactive Player) -->
+            <div class="glass-panel rounded-3xl p-6 border border-slate-800 shadow-lg space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-book-open-reader text-purple-400"></i> 情境小故事 (Story Reader & TTS)
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleStoryTranslation()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition flex items-center gap-1">
+                            <i class="fa-solid fa-language"></i> 中文對照
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Story Audio Player Toolbar -->
+                <div class="bg-slate-950/80 p-3.5 rounded-2xl border border-purple-500/30 flex flex-wrap items-center justify-between gap-4">
+                    <!-- Play / Pause / Stop Buttons -->
+                    <div class="flex items-center gap-2">
+                        <button id="story-play-btn" onclick="playStoryTTS()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-play"></i> 播放故事朗讀
+                        </button>
+                        <button id="story-pause-btn" onclick="pauseStoryTTS()" class="hidden px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1">
+                            <i class="fa-solid fa-pause"></i> 暫停
+                        </button>
+                        <button id="story-stop-btn" onclick="stopStoryTTS()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-stop"></i> 停止
+                        </button>
+                    </div>
+
+                    <!-- Story Voice Speed Control -->
+                    <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl text-xs">
+                        <span class="text-slate-400 font-mono text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i>故事朗讀語速</span>
+                        <button onclick="setStorySpeed(0.8)" id="story-speed-0.8" class="story-speed-btn px-2 py-0.5 rounded-lg text-slate-400 hover:text-white transition">0.8x</button>
+                        <button onclick="setStorySpeed(1.0)" id="story-speed-1.0" class="story-speed-btn px-2 py-0.5 rounded-lg bg-purple-600 text-white font-bold transition">1.0x</button>
+                        <button onclick="setStorySpeed(1.2)" id="story-speed-1.2" class="story-speed-btn px-2 py-0.5 rounded-lg text-slate-400 hover:text-white transition">1.2x</button>
+                    </div>
+                </div>
+
+                <!-- Story Text Box with Highlighted Sentences -->
+                <div id="story-en-box" class="bg-slate-900/90 p-5 rounded-2xl border border-slate-800 text-sm text-slate-200 leading-relaxed font-sans">
+                    <!-- Dynamic Story Sentences -->
+                </div>
+                
+                <!-- Story Chinese Translation -->
+                <div id="story-zh-box" class="hidden bg-purple-950/20 p-4 rounded-2xl border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
+                    <!-- Dynamic Story Translation -->
+                </div>
+            </div>
+
+            <!-- SECTION 4: 相關影片與影音片段 (Video Clips & Youtube Embeds) -->
+            <div class="glass-panel rounded-3xl p-6 border border-slate-800 shadow-lg space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-circle-play text-red-500"></i> 相關單字影片片段 (Video Context)
+                    </h3>
+                    <span class="text-xs text-slate-400 font-mono">情境影音發音與真實應用</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    <div class="md:col-span-8 bg-black rounded-2xl overflow-hidden aspect-video relative border border-slate-800 shadow-md">
+                        <iframe id="youtube-player" class="w-full h-full" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                    <div class="md:col-span-4 space-y-3">
+                        <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                            <p class="text-xs font-bold text-slate-300 mb-1"><i class="fa-brands fa-youtube text-red-500 mr-1"></i> 影音學習要點：</p>
+                            <p id="video-tip" class="text-xs text-slate-400 leading-relaxed">
+                                專注聆聽影片中外國人使用該單字的抑揚頓挫與前後搭配詞 (Collocations)。
+                            </p>
+                        </div>
+                        <button onclick="reloadVideo()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-rotate-right"></i> 重播影片片段
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- TAB 2: 探索與切換單字 (Explore Library) -->
+        <section id="tab-explore" class="tab-content hidden space-y-6">
+            <div>
+                <h2 class="text-2xl font-black text-white flex items-center gap-2">
+                    <i class="fa-solid fa-compass text-purple-400"></i> 探索與切換單字庫
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">依類別搜尋或精選情境主題單字</p>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="flex flex-col md:flex-row gap-3">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-500 text-sm"></i>
+                    <input type="text" id="search-input" oninput="filterWords()" placeholder="搜尋單字、中文或主題..." class="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-inner">
+                </div>
+                <div id="category-filters" class="flex gap-2 overflow-x-auto pb-1">
+                    <button onclick="filterByCategory('all')" class="category-btn active px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-600 text-white shadow-sm transition whitespace-nowrap">全部</button>
+                    <button onclick="filterByCategory('Daily Life')" class="category-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition whitespace-nowrap">生活日常</button>
+                    <button onclick="filterByCategory('Business')" class="category-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition whitespace-nowrap">職場商務</button>
+                    <button onclick="filterByCategory('Tech')" class="category-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition whitespace-nowrap">科技趨勢</button>
+                    <button onclick="filterByCategory('Food & Travel')" class="category-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition whitespace-nowrap">美食旅遊</button>
+                </div>
+            </div>
+
+            <!-- Explore Cards Grid -->
+            <div id="explore-word-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- TAB 3: AI 自選主題與單字生成器 (Custom Theme Generator) -->
+        <section id="tab-custom" class="tab-content hidden space-y-6">
+            <div>
+                <h2 class="text-2xl font-black text-white flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> 自選主題洗腦生成器
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">輸入您喜愛的興趣或工作領域，即時客製專屬 1 分鐘洗腦模組</p>
+            </div>
+
+            <div class="glass-panel rounded-3xl p-6 border border-purple-500/30 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">請輸入您的主題或單字</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="custom-theme-input" placeholder="例如：健身與重訓、精品咖啡、區塊鏈..." class="flex-1 px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs text-white">
+                        <button onclick="generateCustomTheme()" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg transition flex items-center gap-2 text-xs whitespace-nowrap">
+                            <i class="fa-solid fa-gear"></i> 即時生成包
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-xs text-slate-500 mb-2">靈感選題：</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="setCustomThemeQuery('健身與重訓')" class="text-xs bg-slate-800 hover:bg-slate-700 text-purple-300 px-3 py-1.5 rounded-xl border border-slate-700 transition">💪 健身與重訓</button>
+                        <button onclick="setCustomThemeQuery('宇宙探索與星空')" class="text-xs bg-slate-800 hover:bg-slate-700 text-purple-300 px-3 py-1.5 rounded-xl border border-slate-700 transition">🚀 宇宙探索</button>
+                        <button onclick="setCustomThemeQuery('精品咖啡品嚐')" class="text-xs bg-slate-800 hover:bg-slate-700 text-purple-300 px-3 py-1.5 rounded-xl border border-slate-700 transition">☕ 精品咖啡</button>
+                        <button onclick="setCustomThemeQuery('虛擬貨幣Web3')" class="text-xs bg-slate-800 hover:bg-slate-700 text-purple-300 px-3 py-1.5 rounded-xl border border-slate-700 transition">💎 Web3 區塊鏈</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="custom-result-container" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-packing text-purple-400"></i> 專屬主題洗腦單字卡
+                    </h3>
+                    <span id="custom-theme-badge" class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">主題</span>
+                </div>
+                <div id="custom-word-cards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: 我的收藏庫 (Collection) -->
+        <section id="tab-collection" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bookmark text-purple-400"></i> 我的單字收藏庫
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">重點單字溫故知新，隨時進行深度複習</p>
+                </div>
+                <button onclick="startCollectionQuiz()" class="text-xs bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i> 收藏單字測驗
+                </button>
+            </div>
+
+            <div id="collection-word-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 glass-panel border-t border-slate-800 py-3 px-4 z-30 shadow-2xl">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="switchTab('daily')" id="nav-daily" class="nav-btn flex flex-col items-center text-purple-400 transition">
+                <i class="fa-solid fa-bolt text-lg mb-0.5"></i>
+                <span class="text-[10px] font-bold">今日洗腦</span>
+            </button>
+            <button onclick="switchTab('explore')" id="nav-explore" class="nav-btn flex flex-col items-center text-slate-500 hover:text-purple-400 transition">
+                <i class="fa-solid fa-compass text-lg mb-0.5"></i>
+                <span class="text-[10px] font-bold">探索單字</span>
+            </button>
+            <button onclick="switchTab('custom')" id="nav-custom" class="nav-btn flex flex-col items-center text-slate-500 hover:text-purple-400 transition">
+                <i class="fa-solid fa-wand-magic-sparkles text-lg mb-0.5"></i>
+                <span class="text-[10px] font-bold">自選主題</span>
+            </button>
+            <button onclick="switchTab('collection')" id="nav-collection" class="nav-btn flex flex-col items-center text-slate-500 hover:text-purple-400 transition">
+                <i class="fa-solid fa-bookmark text-lg mb-0.5"></i>
+                <span class="text-[10px] font-bold">我的收藏</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Upgraded 5-Stage 1-Minute Brainwash Modal -->
+    <div id="brainwash-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xl hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-purple-500/30 flex flex-col max-h-[92vh]">
+            
+            <!-- Modal Header with Timer & Progress -->
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-purple-500 animate-ping"></span>
+                    <h3 id="modal-brainwash-title" class="font-extrabold text-lg text-white">1分鐘五感洗腦</h3>
+                </div>
+                <button onclick="closeBrainwashSession()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-800 h-2 rounded-full mb-4 overflow-hidden">
+                <div id="brainwash-progress-bar" class="bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 h-full w-1/5 transition-all duration-300"></div>
+            </div>
+
+            <!-- Modal Content Steps Slot -->
+            <div id="brainwash-steps-container" class="flex-1 overflow-y-auto space-y-4 pr-1 my-2">
+                <!-- Dynamically filled step content -->
+            </div>
+
+            <!-- Modal Bottom Controls -->
+            <div class="pt-4 border-t border-slate-800 flex items-center justify-between mt-2">
+                <button id="brainwash-prev-btn" onclick="prevBrainwashStep()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition disabled:opacity-30">
+                    <i class="fa-solid fa-chevron-left mr-1"></i> 上一步
+                </button>
+                <span id="brainwash-step-indicator" class="text-xs text-slate-400 font-mono">階段 1 / 5</span>
+                <button id="brainwash-next-btn" onclick="nextBrainwashStep()" class="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg transition flex items-center gap-1">
+                    下一步 <i class="fa-solid fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-20 right-4 z-50 transform translate-x-full transition-transform duration-300 bg-slate-900 border border-purple-500/40 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-medium">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Database of Words with Structured Sentences for Story Narration
+        const wordDatabase = [
+            {
+                id: 1,
+                word: "Apple",
+                phonetic: "/ˈæp.əl/",
+                pos: "noun (名詞)",
+                translation: "蘋果、蘋果公司",
+                definition: "A round crisp fruit, or the world-famous tech company known for innovation.",
+                category: "Daily Life",
+                imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80",
+                youtubeId: "W238_N2l-0U",
+                mnemonic: {
+                    root: "發音似『愛波』 -> 大家都愛的波浪造型美味水果",
+                    image: "腦海想像一顆鮮紅發光的蘋果落入水中打出愛心波浪",
+                    hook: "『愛波』蘋果，一日一蘋果，健康生活遠離病痛！"
+                },
+                storySentences: [
+                    "Every morning, Leo eats a fresh <span class='highlight-keyword' onclick='speakWord(\"Apple\")' title='點擊發音'>Apple <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> before work.",
+                    "He also uses his <span class='highlight-keyword' onclick='speakWord(\"Apple\")' title='點擊發音'>Apple <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> laptop to write code.",
+                    "For Leo, the word <span class='highlight-keyword' onclick='speakWord(\"Apple\")' title='點擊發音'>Apple <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> represents both good health and powerful tech."
+                ],
+                storyZh: "每天早晨，Leo 在上班前都會吃一顆新鮮的蘋果。他也使用他的 Apple 筆電寫程式。對 Leo 來說，Apple 這個字同時代表了健康與強大的科技。",
+                sentences: [
+                    { en: "An apple a day keeps the doctor away.", zh: "一日一蘋果，醫生遠離我。" },
+                    { en: "She took a big bite of the crisp red apple.", zh: "她咬了一大口爽脆的紅蘋果。" },
+                    { en: "He bought a new Apple laptop for work.", zh: "他買了一台新的 Apple 筆記型電腦工作。" }
+                ]
+            },
+            {
+                id: 2,
+                word: "Resilience",
+                phonetic: "/rɪˈzɪl.jəns/",
+                pos: "noun (名詞)",
+                translation: "韌性、復原力、彈性",
+                definition: "The capacity to recover quickly from difficulties and adapt to change.",
+                category: "Business",
+                imageUrl: "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=800&q=80",
+                youtubeId: "e80bbX05D7Y",
+                mnemonic: {
+                    root: "re (重新) + sili (跳躍/彈起) + ence -> 跌倒後重新彈起來的勇氣",
+                    image: "想像一棵懸崖邊的小樹，歷經暴風雨彎曲後又強勢挺直",
+                    hook: "『Re-bounce, Re-silience』彈力十足，不怕打擊！"
+                },
+                storySentences: [
+                    "When the company faced a severe crisis, the team displayed remarkable <span class='highlight-keyword' onclick='speakWord(\"Resilience\")' title='點擊發音'>Resilience <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span>.",
+                    "Their <span class='highlight-keyword' onclick='speakWord(\"Resilience\")' title='點擊發音'>Resilience <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> inspired investors to believe in them again.",
+                    "True success is built on unwavering <span class='highlight-keyword' onclick='speakWord(\"Resilience\")' title='點擊發音'>Resilience <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span>."
+                ],
+                storyZh: "當公司面臨嚴重危機時，團隊展現了驚人的韌性。他們的復原力重新激勵了投資人的信心。真正的成功建立在堅定不移的韌性之上。",
+                sentences: [
+                    { en: "Economic resilience is crucial during a market slump.", zh: "在市場低迷時期，經濟韌性至關重要。" },
+                    { en: "Her emotional resilience helped her overcome the failure.", zh: "她情感上的韌性幫助她克服了失敗。" }
+                ]
+            },
+            {
+                id: 3,
+                word: "Innovation",
+                phonetic: "/ˌɪn.əˈveɪ.shən/",
+                pos: "noun (名詞)",
+                translation: "創新、革新",
+                definition: "The creation, development, and implementation of new ideas or technology.",
+                category: "Tech",
+                imageUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+                youtubeId: "VB4I2Xm3aA0",
+                mnemonic: {
+                    root: "in (進入) + nov (新, novel) + ation -> 引進全新元素的變革",
+                    image: "想像黑夜中突然點亮了一顆發光的懸浮電燈泡",
+                    hook: "『In-Nova-tion』深入注入新思維，點亮未來！"
+                },
+                storySentences: [
+                    "Tech startups thrive on constant <span class='highlight-keyword' onclick='speakWord(\"Innovation\")' title='點擊發音'>Innovation <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span>.",
+                    "Without <span class='highlight-keyword' onclick='speakWord(\"Innovation\")' title='點擊發音'>Innovation <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span>, old businesses quickly fade away.",
+                    "Embracing <span class='highlight-keyword' onclick='speakWord(\"Innovation\")' title='點擊發音'>Innovation <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> keeps companies ahead of competitors."
+                ],
+                storyZh: "科技新創靠著不斷的創新而蓬勃發展。沒有創新，老舊企業很快就會被淘汰。擁抱革新能讓公司始終保持競爭優勢。",
+                sentences: [
+                    { en: "Technological innovation is changing our daily life.", zh: "技術創新正在改變我們的日常生活。" },
+                    { en: "Innovation requires creative thinking and courage.", zh: "創新需要創造性思維與勇氣。" }
+                ]
+            },
+            {
+                id: 4,
+                word: "Gourmet",
+                phonetic: "/ˈɡʊr.meɪ/",
+                pos: "noun/adj (美食/美饌的)",
+                translation: "美饌、美食家、講究的食物",
+                definition: "High-quality, refined food or drink prepared with great expertise.",
+                category: "Food & Travel",
+                imageUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+                youtubeId: "J8m3S0wVz4g",
+                mnemonic: {
+                    root: "法文來源，發音似『姑妹』 -> 姑姑妹仔都愛的精緻高級法式料理",
+                    image: "擺盤極其華麗的米其林三星主廚精緻甜點",
+                    hook: "『Gourmet』美饌佳餚，饕客的最愛！"
+                },
+                storySentences: [
+                    "They visited a world-famous <span class='highlight-keyword' onclick='speakWord(\"Gourmet\")' title='點擊發音'>Gourmet <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> restaurant in Paris.",
+                    "The chef served a <span class='highlight-keyword' onclick='speakWord(\"Gourmet\")' title='點擊發音'>Gourmet <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> meal with fresh truffle.",
+                    "Every food lover dreams of a true <span class='highlight-keyword' onclick='speakWord(\"Gourmet\")' title='點擊發音'>Gourmet <i class=\"fa-solid fa-volume-high text-[10px] ml-0.5\"></i></span> experience."
+                ],
+                storyZh: "他們拜訪了一家位於巴黎的世界知名美食餐廳。主廚上了搭配新鮮松露的高級美饌。每位美食家都渴望一次真正的美食體驗。",
+                sentences: [
+                    { en: "This gourmet burger features organic Wagyu beef.", zh: "這款精緻漢堡採用有機和牛肉。" },
+                    { en: "He is a gourmet who loves fine wines.", zh: "他是一位熱愛美酒的品味美食家。" }
+                ]
+            }
+        ];
+
+        // Global Application State
+        let currentWordIndex = 0;
+        let globalSpeed = 1.0;
+        let storySpeed = 1.0;
+        let bookmarkedWords = JSON.parse(localStorage.getItem('wordwave_v2_bookmarks')) || ["Apple", "Resilience"];
+        let userStreak = parseInt(localStorage.getItem('wordwave_v2_streak')) || 5;
+
+        // Story Native TTS State Engine
+        let storyUtterances = [];
+        let currentSentenceIdx = 0;
+        let isStoryPlaying = false;
+        let isStoryPaused = false;
+
+        // Brainwash Modal State
+        let currentBrainwashStep = 1;
+        let activeWordObj = null;
+
+        window.onload = function() {
+            document.getElementById('streak-count').textContent = userStreak;
+            loadDailyWordByIndex(0);
+            renderExploreGrid(wordDatabase);
+            renderCollectionGrid();
+        };
+
+        // Navigation Tab Switching
+        function switchTab(tabId) {
+            stopStoryTTS();
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-purple-400');
+                el.classList.add('text-slate-500');
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) {
+                activeNav.classList.remove('text-slate-500');
+                activeNav.classList.add('text-purple-400');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Web Speech API Voice Narrator
+        function setGlobalSpeed(speed) {
+            globalSpeed = speed;
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-600', 'text-white', 'font-bold');
+                btn.classList.add('text-slate-300');
+            });
+            const activeBtn = document.getElementById(`speed-${speed}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-purple-600', 'text-white', 'font-bold');
+            }
+            showToast(`單字語速切換為 ${speed}x`);
+        }
+
+        function speakWord(text, customSpeed = null) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                stopStoryTTS();
+                const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ''));
+                utterance.lang = 'en-US';
+                utterance.rate = customSpeed || globalSpeed;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                showToast('您的瀏覽器不支援語音合成');
+            }
+        }
+
+        // Load Daily Word into UI
+        function loadDailyWordByIndex(index) {
+            stopStoryTTS();
+            currentWordIndex = index;
+            const word = wordDatabase[currentWordIndex];
+
+            document.getElementById('word-category-tag').textContent = word.category;
+            document.getElementById('word-pos').textContent = word.pos;
+            document.getElementById('current-word').textContent = word.word;
+            document.getElementById('word-phonetic').textContent = word.phonetic;
+            document.getElementById('word-translation').textContent = word.translation;
+            document.getElementById('word-definition').textContent = word.definition;
+            document.getElementById('word-image').src = word.imageUrl;
+
+            // Load Mnemonics
+            document.getElementById('mnemonic-root').textContent = word.mnemonic.root;
+            document.getElementById('mnemonic-image').textContent = word.mnemonic.image;
+            document.getElementById('mnemonic-hook').textContent = word.mnemonic.hook;
+
+            // Render Story HTML Sentences
+            renderStoryHtml(word);
+            document.getElementById('story-zh-box').innerHTML = word.storyZh;
+            document.getElementById('story-zh-box').classList.add('hidden');
+
+            // Load Youtube Embed
+            document.getElementById('youtube-player').src = `https://www.youtube.com/embed/${word.youtubeId}?rel=0`;
+
+            updateBookmarkButtonState(word.word);
+        }
+
+        function renderStoryHtml(word) {
+            const container = document.getElementById('story-en-box');
+            container.innerHTML = word.storySentences.map((sentenceHtml, idx) => `
+                <span id="story-sent-${idx}" class="story-sentence inline-block my-1 leading-relaxed">
+                    ${sentenceHtml}
+                </span>
+            `).join(' ');
+        }
+
+        function navigateWord(direction) {
+            let newIndex = currentWordIndex + direction;
+            if (newIndex < 0) newIndex = wordDatabase.length - 1;
+            if (newIndex >= wordDatabase.length) newIndex = 0;
+            loadDailyWordByIndex(newIndex);
+        }
+
+        function loadRandomDailyWord() {
+            const randomIndex = Math.floor(Math.random() * wordDatabase.length);
+            loadDailyWordByIndex(randomIndex);
+            showToast(`切換單字：「${wordDatabase[randomIndex].word}」`);
+        }
+
+        // Story Native Text-to-Speech Engine Functions
+        function setStorySpeed(speed) {
+            storySpeed = speed;
+            document.querySelectorAll('.story-speed-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-600', 'text-white', 'font-bold');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`story-speed-${speed}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-purple-600', 'text-white', 'font-bold');
+                activeBtn.classList.remove('text-slate-400');
+            }
+            if (isStoryPlaying) {
+                playStoryTTS(currentSentenceIdx);
+            }
+            showToast(`故事朗讀語速設為 ${speed}x`);
+        }
+
+        function toggleStoryTranslation() {
+            const zhBox = document.getElementById('story-zh-box');
+            zhBox.classList.toggle('hidden');
+        }
+
+        function playStoryTTS(startFromIndex = 0) {
+            if (!('speechSynthesis' in window)) {
+                showToast('您的瀏覽器不支援語音合成');
+                return;
+            }
+
+            if (isStoryPaused) {
+                window.speechSynthesis.resume();
+                isStoryPaused = false;
+                isStoryPlaying = true;
+                updateStoryUIState();
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            const word = wordDatabase[currentWordIndex];
+            currentSentenceIdx = startFromIndex;
+            isStoryPlaying = true;
+            isStoryPaused = false;
+            updateStoryUIState();
+
+            speakSentenceSequence(word.storySentences, currentSentenceIdx);
+        }
+
+        function speakSentenceSequence(sentences, idx) {
+            if (idx >= sentences.length || !isStoryPlaying) {
+                stopStoryTTS();
+                return;
+            }
+
+            currentSentenceIdx = idx;
+            highlightStorySentence(idx);
+
+            // Strip HTML tags for SpeechSynthesis
+            const cleanText = sentences[idx].replace(/<[^>]*>?/gm, '');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'en-US';
+            utterance.rate = storySpeed;
+
+            utterance.onend = function() {
+                if (isStoryPlaying && !isStoryPaused) {
+                    speakSentenceSequence(sentences, idx + 1);
+                }
+            };
+
+            utterance.onerror = function() {
+                stopStoryTTS();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function pauseStoryTTS() {
+            if (isStoryPlaying && !isStoryPaused) {
+                window.speechSynthesis.pause();
+                isStoryPaused = true;
+                updateStoryUIState();
+            }
+        }
+
+        function stopStoryTTS() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            isStoryPlaying = false;
+            isStoryPaused = false;
+            currentSentenceIdx = 0;
+            highlightStorySentence(-1);
+            updateStoryUIState();
+        }
+
+        function highlightStorySentence(activeIdx) {
+            const word = wordDatabase[currentWordIndex];
+            word.storySentences.forEach((_, idx) => {
+                const el = document.getElementById(`story-sent-${idx}`);
+                if (el) {
+                    if (idx === activeIdx) {
+                        el.classList.add('active-sentence');
+                    } else {
+                        el.classList.remove('active-sentence');
+                    }
+                }
+            });
+        }
+
+        function updateStoryUIState() {
+            const playBtn = document.getElementById('story-play-btn');
+            const pauseBtn = document.getElementById('story-pause-btn');
+
+            if (isStoryPlaying && !isStoryPaused) {
+                playBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 朗讀中...`;
+                playBtn.classList.remove('from-purple-600', 'to-indigo-600');
+                playBtn.classList.add('from-purple-700', 'to-indigo-800');
+                pauseBtn.classList.remove('hidden');
+            } else if (isStoryPaused) {
+                playBtn.innerHTML = `<i class="fa-solid fa-play"></i> 繼續朗讀`;
+                pauseBtn.classList.add('hidden');
+            } else {
+                playBtn.innerHTML = `<i class="fa-solid fa-play"></i> 播放故事朗讀`;
+                playBtn.classList.add('from-purple-600', 'to-indigo-600');
+                pauseBtn.classList.add('hidden');
+            }
+        }
+
+        function reloadVideo() {
+            const word = wordDatabase[currentWordIndex];
+            document.getElementById('youtube-player').src = `https://www.youtube.com/embed/${word.youtubeId}?autoplay=1`;
+        }
+
+        // Bookmarks Management
+        function toggleCurrentWordBookmark() {
+            const currentWord = wordDatabase[currentWordIndex].word;
+            toggleBookmark(currentWord);
+        }
+
+        function toggleBookmark(wordName) {
+            const index = bookmarkedWords.indexOf(wordName);
+            if (index > -1) {
+                bookmarkedWords.splice(index, 1);
+                showToast(`已移除收藏「${wordName}」`);
+            } else {
+                bookmarkedWords.push(wordName);
+                showToast(`成功收藏「${wordName}」！`);
+            }
+            localStorage.setItem('wordwave_v2_bookmarks', JSON.stringify(bookmarkedWords));
+            updateBookmarkButtonState(wordDatabase[currentWordIndex].word);
+            renderExploreGrid(wordDatabase);
+            renderCollectionGrid();
+        }
+
+        function updateBookmarkButtonState(wordName) {
+            const btn = document.getElementById('daily-bookmark-btn');
+            if (bookmarkedWords.includes(wordName)) {
+                btn.innerHTML = '<i class="fa-solid fa-bookmark text-purple-400"></i>';
+                btn.classList.add('bg-purple-600/30');
+            } else {
+                btn.innerHTML = '<i class="fa-regular fa-bookmark"></i>';
+                btn.classList.remove('bg-purple-600/30');
+            }
+        }
+
+        // Explore Grid & Filter
+        function filterByCategory(category) {
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            event.target.classList.remove('bg-slate-800', 'text-slate-300');
+            event.target.classList.add('bg-purple-600', 'text-white');
+
+            let filtered = wordDatabase;
+            if (category !== 'all') {
+                filtered = wordDatabase.filter(w => w.category === category);
+            }
+            renderExploreGrid(filtered);
+        }
+
+        function filterWords() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filtered = wordDatabase.filter(w => 
+                w.word.toLowerCase().includes(query) || 
+                w.translation.toLowerCase().includes(query) ||
+                w.category.toLowerCase().includes(query)
+            );
+            renderExploreGrid(filtered);
+        }
+
+        function renderExploreGrid(words) {
+            const grid = document.getElementById('explore-word-grid');
+            if (words.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">找不到符合的單字</div>`;
+                return;
+            }
+
+            grid.innerHTML = words.map(w => {
+                const isBookmarked = bookmarkedWords.includes(w.word);
+                return `
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between hover:border-purple-500/40 transition">
+                        <div>
+                            <div class="relative h-32 rounded-xl overflow-hidden mb-3">
+                                <img src="${w.imageUrl}" class="w-full h-full object-cover">
+                                <span class="absolute top-2 left-2 text-[10px] font-bold bg-slate-950/80 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">${w.category}</span>
+                                <button onclick="toggleBookmark('${w.word}')" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-900/80 text-white flex items-center justify-center">
+                                    <i class="${isBookmarked ? 'fa-solid text-purple-400' : 'fa-regular'} fa-bookmark text-xs"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-lg font-bold text-white">${w.word}</h4>
+                                <button onclick="speakWord('${w.word}')" class="text-purple-400 p-1">
+                                    <i class="fa-solid fa-volume-high text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-purple-300 font-semibold mb-1">${w.translation}</p>
+                            <p class="text-[11px] text-slate-400 line-clamp-2">${w.definition}</p>
+                        </div>
+                        <button onclick='loadWordDirectly("${w.word}")' class="mt-4 w-full py-2 bg-slate-800 hover:bg-purple-600 hover:text-white text-purple-300 text-xs font-bold rounded-xl transition">
+                            開始沉浸洗腦
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadWordDirectly(wordName) {
+            const index = wordDatabase.findIndex(w => w.word === wordName);
+            if (index !== -1) {
+                loadDailyWordByIndex(index);
+                switchTab('daily');
+                startBrainwashSession();
+            }
+        }
+
+        // Custom Theme Generator
+        function setCustomThemeQuery(topic) {
+            document.getElementById('custom-theme-input').value = topic;
+            generateCustomTheme();
+        }
+
+        function generateCustomTheme() {
+            const input = document.getElementById('custom-theme-input').value.trim();
+            if (!input) {
+                showToast('請輸入主題！');
+                return;
+            }
+
+            const container = document.getElementById('custom-result-container');
+            const listContainer = document.getElementById('custom-word-cards-list');
+            document.getElementById('custom-theme-badge').textContent = `主題：${input}`;
+            container.classList.remove('hidden');
+
+            const generatedWords = [
+                {
+                    word: input.includes('健身') ? "Hypertrophy" : (input.includes('咖啡') ? "Aroma" : "Apex"),
+                    phonetic: "/haɪˈpɜː.trə.fi/",
+                    pos: "noun (名詞)",
+                    translation: "肌肉肥大、增肌",
+                    definition: `Customized key concept for ${input}.`,
+                    imageUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80",
+                    category: input
+                },
+                {
+                    word: input.includes('健身') ? "Endurance" : "Synergy",
+                    phonetic: "/ɪnˈdʊr.əns/",
+                    pos: "noun (名詞)",
+                    translation: "耐力、持久力",
+                    definition: `High-frequency vocabulary item generated for ${input}.`,
+                    imageUrl: "https://images.unsplash.com/photo-1486218119243-13883505764c?auto=format&fit=crop&w=800&q=80",
+                    category: input
+                }
+            ];
+
+            listContainer.innerHTML = generatedWords.map(w => `
+                <div class="glass-panel rounded-2xl p-4 border border-purple-500/30 flex flex-col justify-between">
+                    <div>
+                        <div class="h-28 rounded-xl overflow-hidden mb-2">
+                            <img src="${w.imageUrl}" class="w-full h-full object-cover">
+                        </div>
+                        <h4 class="text-base font-bold text-white">${w.word} <span class="text-xs font-mono text-slate-400">${w.phonetic}</span></h4>
+                        <p class="text-xs text-purple-300 font-bold mb-1">${w.translation}</p>
+                        <p class="text-[11px] text-slate-400 mb-2">${w.definition}</p>
+                    </div>
+                    <button onclick='showToast("已成功載入主題單字！")' class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition">
+                        體驗主題洗腦
+                    </button>
+                </div>
+            `).join('');
+
+            showToast(`已生成「${input}」主題洗腦包！`);
+        }
+
+        // Collection Render
+        function renderCollectionGrid() {
+            const grid = document.getElementById('collection-word-grid');
+            const savedWords = wordDatabase.filter(w => bookmarkedWords.includes(w.word));
+
+            if (savedWords.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500 glass-panel rounded-3xl">
+                        <i class="fa-regular fa-bookmark text-3xl mb-2 text-purple-400"></i>
+                        <p class="text-xs">尚未收藏任何單字，點擊書籤圖示即可加入收藏！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = savedWords.map(w => `
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">${w.category}</span>
+                            <button onclick="toggleBookmark('${w.word}')" class="text-purple-400">
+                                <i class="fa-solid fa-bookmark text-xs"></i>
+                            </button>
+                        </div>
+                        <h4 class="text-lg font-bold text-white mb-0.5">${w.word}</h4>
+                        <p class="text-xs text-purple-300 font-semibold mb-2">${w.translation}</p>
+                        <p class="text-[11px] text-slate-400 line-clamp-2">${w.definition}</p>
+                    </div>
+                    <button onclick='loadWordDirectly("${w.word}")' class="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl transition">
+                        複習洗腦 <i class="fa-solid fa-play ml-1"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Upgraded 5-Stage Brainwash Engine
+        function startBrainwashSession() {
+            stopStoryTTS();
+            activeWordObj = wordDatabase[currentWordIndex];
+            currentBrainwashStep = 1;
+            document.getElementById('modal-brainwash-title').textContent = `1分鐘五感洗腦: ${activeWordObj.word}`;
+            document.getElementById('brainwash-modal').classList.remove('hidden');
+            renderBrainwashStep();
+        }
+
+        function closeBrainwashSession() {
+            document.getElementById('brainwash-modal').classList.add('hidden');
+        }
+
+        function nextBrainwashStep() {
+            if (currentBrainwashStep < 5) {
+                currentBrainwashStep++;
+                renderBrainwashStep();
+            } else {
+                closeBrainwashSession();
+            }
+        }
+
+        function prevBrainwashStep() {
+            if (currentBrainwashStep > 1) {
+                currentBrainwashStep--;
+                renderBrainwashStep();
+            }
+        }
+
+        function renderBrainwashStep() {
+            const container = document.getElementById('brainwash-steps-container');
+            const progressBar = document.getElementById('brainwash-progress-bar');
+            const stepIndicator = document.getElementById('brainwash-step-indicator');
+            const prevBtn = document.getElementById('brainwash-prev-btn');
+            const nextBtn = document.getElementById('brainwash-next-btn');
+
+            progressBar.style.width = `${(currentBrainwashStep / 5) * 100}%`;
+            stepIndicator.textContent = `階段 ${currentBrainwashStep} / 5`;
+            prevBtn.disabled = currentBrainwashStep === 1;
+
+            if (currentBrainwashStep === 1) {
+                nextBtn.innerHTML = `下一步 <i class="fa-solid fa-chevron-right ml-1"></i>`;
+                speakWord(activeWordObj.word);
+                container.innerHTML = `
+                    <div class="space-y-3 text-center">
+                        <span class="text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30 uppercase">Stage 1: 視覺情境與標準發音</span>
+                        <div class="relative h-48 rounded-2xl overflow-hidden border border-slate-700 my-2">
+                            <img src="${activeWordObj.imageUrl}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                            <div class="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                                <h4 class="text-3xl font-black text-white">${activeWordObj.word}</h4>
+                                <button onclick="speakWord('${activeWordObj.word}')" class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-300 font-semibold">${activeWordObj.translation} · ${activeWordObj.phonetic}</p>
+                    </div>
+                `;
+            } else if (currentBrainwashStep === 2) {
+                nextBtn.innerHTML = `下一步 <i class="fa-solid fa-chevron-right ml-1"></i>`;
+                speakWord(activeWordObj.mnemonic.hook);
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/30">
+                            <span class="text-[10px] font-bold text-amber-400 uppercase">Stage 2: 記憶藍圖與諧音聯想</span>
+                            <h4 class="text-lg font-extrabold text-amber-300 mt-1">${activeWordObj.mnemonic.hook}</h4>
+                        </div>
+                        <div class="space-y-2 text-xs text-slate-300 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                            <p><strong>諧音/拆解：</strong> ${activeWordObj.mnemonic.root}</p>
+                            <p><strong>圖像畫面：</strong> ${activeWordObj.mnemonic.image}</p>
+                        </div>
+                    </div>
+                `;
+            } else if (currentBrainwashStep === 3) {
+                nextBtn.innerHTML = `下一步 <i class="fa-solid fa-chevron-right ml-1"></i>`;
+                speakWord(activeWordObj.storySentences.join(' '));
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <span class="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30 uppercase">Stage 3: 故事文章情境浸泡</span>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs leading-relaxed text-slate-200">
+                            ${activeWordObj.storySentences.join(' ')}
+                        </div>
+                        <p class="text-[11px] text-slate-400 bg-purple-950/30 p-3 rounded-xl border border-purple-500/20">
+                            ${activeWordObj.storyZh}
+                        </p>
+                    </div>
+                `;
+            } else if (currentBrainwashStep === 4) {
+                nextBtn.innerHTML = `下一步 <i class="fa-solid fa-chevron-right ml-1"></i>`;
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <span class="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30 uppercase">Stage 4: 多重語速句子重複</span>
+                        <div class="space-y-2">
+                            ${activeWordObj.sentences.map((s) => `
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                                    <div>
+                                        <p class="text-xs font-bold text-white">${s.en}</p>
+                                        <p class="text-[10px] text-slate-400">${s.zh}</p>
+                                    </div>
+                                    <button onclick="speakWord('${s.en.replace(/'/g, "\\'")}')" class="text-purple-400 p-1">
+                                        <i class="fa-solid fa-volume-high text-xs"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (currentBrainwashStep === 5) {
+                nextBtn.innerHTML = `完成洗腦 <i class="fa-solid fa-check ml-1"></i>`;
+                triggerConfetti();
+                container.innerHTML = `
+                    <div class="text-center py-4 space-y-3">
+                        <div class="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-400 text-white rounded-full flex items-center justify-center mx-auto text-2xl shadow-xl shadow-emerald-500/20">
+                            <i class="fa-solid fa-award"></i>
+                        </div>
+                        <h4 class="text-xl font-black text-white">五感洗腦成功鎖定！</h4>
+                        <p class="text-xs text-slate-300">
+                            單字 <strong class="text-purple-400">${activeWordObj.word}</strong> 已建立高強度神經記憶連結。
+                        </p>
+                        <div class="bg-purple-950/40 border border-purple-500/30 p-3 rounded-xl text-xs text-purple-200">
+                            連續連擊天數加 1 天！繼續保持！
+                        </div>
+                    </div>
+                `;
+                userStreak++;
+                localStorage.setItem('wordwave_v2_streak', userStreak);
+                document.getElementById('streak-count').textContent = userStreak;
+            }
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 80,
+                    spread: 60,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function startCollectionQuiz() {
+            const savedWords = wordDatabase.filter(w => bookmarkedWords.includes(w.word));
+            if (savedWords.length === 0) {
+                showToast('請先收藏單字！');
+                return;
+            }
+            loadDailyWordByIndex(0);
+            switchTab('daily');
+            startBrainwashSession();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+```
